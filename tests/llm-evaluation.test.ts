@@ -7,22 +7,18 @@ import {
     OpenAIModel,
     GenerationReporter,
 } from "okareo-ts-sdk";
-
 import * as prompts from "../prompts.json"
 import * as core from "@actions/core";
 
+//env vars
 const OKAREO_API_KEY = process.env.OKAREO_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const UNIQUE_BUILD_ID = (process.env.DEMO_BUILD_ID || `local.${(Math.random() + 1).toString(36).substring(7)}`);
 
+// names
 const PROJECT_NAME = "Global";
 const MODEL_NAME = "Text Summarizer";
 const SCENARIO_SET_NAME = "Webbizz Articles for Text Summarization";
-
-const USER_PROMPT_TEMPLATE = "{input}"
-const SUMMARIZATION_CONTEXT_TEMPLATE = "You will be provided with text. Summarize the text in 1 simple sentence."
-
-
 
 describe('Evaluations', () => {
      test('Text Summarization', async () =>  {
