@@ -67,6 +67,14 @@ describe('Evaluations', () => {
 	            }
 	        );
 
+	        // create checks
+	        const checks = [
+				"coherence_summary",
+				"consistency_summary",
+				"fluency_summary",
+				"relevance_summary"
+			]
+
 	        // run LLM evaluation
 			const eval_run: components["schemas"]["TestRunItem"] = await model.run_test({
 				model_api_key: OPENAI_API_KEY,
@@ -76,12 +84,7 @@ describe('Evaluations', () => {
 				scenario: scenario,
 				calculate_metrics: true,
 				type: TestRunType.NL_GENERATION,
-				checks: [
-					"coherence_summary",
-					"consistency_summary",
-					"fluency_summary",
-					"relevance_summary"
-				]
+				checks: checks
 			} as RunTestProps);
 
 
