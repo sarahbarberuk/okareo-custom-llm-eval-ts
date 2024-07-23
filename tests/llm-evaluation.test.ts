@@ -118,7 +118,7 @@ describe('Evaluations', () => {
 	        expect(eval_run).toBeDefined();
 
 			// define thresholds for reporting
-			const report_definition = {
+			const thresholds = {
 				metrics_min: {
 					"coherence_summary": 4.0,
 					"consistency_summary": 4.0,
@@ -138,7 +138,7 @@ describe('Evaluations', () => {
 			// create reporter and pass thresholds to it
 			const reporter = new GenerationReporter({
 					eval_run :eval_run, 
-					...report_definition,
+					...thresholds,
 			});
 			reporter.log(); // log reporting output to command line
 			
