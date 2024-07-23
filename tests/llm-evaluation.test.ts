@@ -2,12 +2,14 @@ import {
 	Okareo, 
 	RunTestProps, 
 	components,
-	SeedData,
     TestRunType, 
     OpenAIModel,
+    CheckOutputType,
     GenerationReporter,
 } from "okareo-ts-sdk";
 import * as prompts from "../prompts.json"
+import { CHECK_TYPE, register_checks } from '../tests/utils/check_utils';
+//GitHub Actions
 import * as core from "@actions/core";
 
 //env vars
@@ -17,13 +19,13 @@ const UNIQUE_BUILD_ID = (process.env.DEMO_BUILD_ID || `local.${(Math.random() + 
 
 // names
 const PROJECT_NAME = "Global";
-const MODEL_NAME = "Text Summarizer";
-const SCENARIO_SET_NAME = "Webbizz Articles for Text Summarization";
+const MODEL_NAME = "Meeting Summarizer";
+const SCENARIO_SET_NAME = "Meeting Bank Small Data Set";
 
 describe('Evaluations', () => {
-     test('Text Summarization', async () =>  {
+     test('Meeting Summarization', async () =>  {
      	try {
-     		// Setup Okareo
+     		// setup Okareo
      		const okareo = new Okareo({api_key: OKAREO_API_KEY });
 			const project: any[] = await okareo.getProjects();
 			const project_id = project.find(p => p.name === PROJECT_NAME)?.id;
@@ -43,36 +45,60 @@ describe('Evaluations', () => {
 				update: true,
 			});
 
-	     	// create scenario set
-	        const SCENARIO_DATA = [
-			    SeedData({
-			        input:"WebBizz is dedicated to providing our customers with a seamless online shopping experience. Our platform is designed with user-friendly interfaces to help you browse and select the best products suitable for your needs. We offer a wide range of products from top brands and new entrants, ensuring diversity and quality in our offerings. Our 24/7 customer support is ready to assist you with any queries, from product details, shipping timelines, to payment methods. We also have a dedicated FAQ section addressing common concerns. Always ensure you are logged in to enjoy personalized product recommendations and faster checkout processes.",  
-			        result:"WebBizz offers a user-friendly online shopping platform with diverse, quality products, 24/7 customer support, and personalized recommendations for a seamless experience."
-			    }),
-			    SeedData({
-			        input:"Safety and security of your data is our top priority at WebBizz. Our platform employs state-of-the-art encryption methods ensuring your personal and financial information remains confidential. Our two-factor authentication at checkout provides an added layer of security. We understand the importance of timely deliveries, hence we've partnered with reliable logistics partners ensuring your products reach you in pristine condition. In case of any delays or issues, our tracking tool can provide real-time updates on your product's location. We believe in transparency and guarantee no hidden fees or charges during your purchase journey.",  
-			        result:"WebBizz prioritizes data security with advanced encryption and two-factor authentication, ensures timely deliveries with reliable logistics, provides real-time tracking, and guarantees no hidden fees."
-			    }),
-			    SeedData({
-			        input:"WebBizz places immense value on its dedicated clientele, recognizing their loyalty through the exclusive 'Premium Club' membership. This special program is designed to enrich the shopping experience, providing a suite of benefits tailored to our valued members. Among the advantages, members enjoy complimentary shipping, granting them a seamless and cost-effective way to receive their purchases. Additionally, the 'Premium Club' offers early access to sales, allowing members to avail themselves of promotional offers before they are opened to the general public.", 
-			        result:"WebBizz values its loyal customers through the exclusive 'Premium Club' membership, offering benefits like complimentary shipping and early access to sales."
-			    })
-			];
-
-	        const scenario: any = await okareo.create_scenario_set(
+            // upload scenario set (from file)
+	        const scenario: any = await okareo.upload_scenario_set(
 	            {
 	            	name: `${SCENARIO_SET_NAME} Scenario Set - ${UNIQUE_BUILD_ID}`,
+	            	file_path: "./tests/meetings.jsonl",
 	            	project_id: project_id,
-		            seed_data: SCENARIO_DATA
 	            }
 	        );
 
-	        // create checks
+            // // define your custom checks
+			const custom_checks: CHECK_TYPE[] = [
+				{
+					name: "demo.Summary.Length",
+					description: "Return the length of the short_summary property from the JSON model response.",
+					output_data_type: CheckOutputType.SCORE,
+				},
+				{
+					name: "demo.Summary.Under256",
+					description: "Pass if the property short_summary from the JSON model result has less than 256 characters.",
+					output_data_type: CheckOutputType.PASS_FAIL,
+				},
+				{
+					name:"demo.Summary.JSON",
+					description: "Pass if the model result is JSON with the properties short_summary, actions, and attendee_list.",
+					output_data_type: CheckOutputType.PASS_FAIL,
+				},
+				{
+					name:"demo.Attendees.Length",
+					description: "Return the length of the number of particpants in the attendee_list in the JSON model response.",
+					output_data_type: CheckOutputType.SCORE,
+				},
+				{
+					name:"demo.Actions.Length",
+					description: "Return the length of the number of actions in the JSON model response.",
+					output_data_type: CheckOutputType.SCORE,
+				},
+				{
+					name:"demo.Tone.Friendly", // Peer evaluation check (another LLM checks the behaviour of your LLM)
+					description: "Use a model judgement to determine if the tone in the meeting is friendly (true).",
+					prompt: "Only output True if the speakers in the meeting are friendly, otherwise return False.",
+					output_data_type: CheckOutputType.PASS_FAIL,
+				},
+			];
+
+			// register custom checks with Okareo
+			register_checks(okareo, project_id, custom_checks);
+
+	        // name the checks you will use with your evaluation
 	        const checks = [
-				"coherence_summary",
-				"consistency_summary",
-				"fluency_summary",
-				"relevance_summary"
+				"coherence_summary", // Okareo native check
+				"consistency_summary", // Okareo native check
+				"fluency_summary", // Okareo native check
+				"relevance_summary", // Okareo native check
+				...custom_checks.map(c => c.name), // custom checks
 			]
 
 	        // run LLM evaluation
@@ -91,23 +117,34 @@ describe('Evaluations', () => {
 			//test that evaluation has run
 	        expect(eval_run).toBeDefined();
 
-			// reporting
+			// define thresholds for reporting
 			const report_definition = {
 				metrics_min: {
-					"coherence": 4.0,
-					"consistency": 4.0,
-					"fluency": 4.0,
-					"relevance": 4.0,
-				}
+					"coherence_summary": 4.0,
+					"consistency_summary": 4.0,
+					"fluency_summary": 4.0,
+					"relevance_summary": 4.0,
+				},
+				metrics_max: {
+					"demo.summary.Length": 256,
+				},
+				pass_rate: {
+					"demo.summary.Under256": 0.75,
+					"deom.Tone.Friendly": 1,
+				},
+				error_max: 3,
 			};
 
+			// create reporter and pass thresholds to it
 			const reporter = new GenerationReporter({
 					eval_run :eval_run, 
 					...report_definition,
 			});
-			reporter.log();
+			reporter.log(); // log reporting output to command line
 			
+			// assert that evaluation must pass
 			expect(reporter.pass).toBeTruthy();
+
 		} catch (error) {
 			if (error instanceof Error) {
 			    core.setFailed("CI failed because: " + error.message);
