@@ -28,11 +28,11 @@ Your response MUST be in the following JSON format.  Content you add should not 
 
 export const prompts = {
 
-    getSummarySystemPrompt: (): string => {
+    getCustomSystemPrompt: (): string => {
         return SYSTEM_MEETING_SUMMARIZER_TEMPLATE;
     },
 
-    getSummaryUserPrompt: (): string => {
+    getUserPromptTemplate: (): string => {
         return USER_PROMPT_TEMPLATE;
     }
 }

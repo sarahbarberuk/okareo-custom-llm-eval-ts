@@ -7,7 +7,7 @@ import {
     CheckOutputType,
     GenerationReporter,
 } from "okareo-ts-sdk";
-import * as prompts from "../prompts.json"
+import { prompts } from "../prompts/meeting_summary"
 import { CHECK_TYPE, register_checks } from '../tests/utils/check_utils';
 //GitHub Actions
 import * as core from "@actions/core";
@@ -39,8 +39,8 @@ describe('Evaluations', () => {
 					type: "openai",
 					model_id:"gpt-3.5-turbo",
 					temperature:0.5,
-					system_prompt_template:prompts.CUSTOM_SYSTEM_PROMPT,
-					user_prompt_template:prompts.USER_PROMPT_TEMPLATE,
+					system_prompt_template:prompts.getCustomSystemPrompt(),
+					user_prompt_template:prompts.getUserPromptTemplate(),
 				} as OpenAIModel,
 				update: true,
 			});
